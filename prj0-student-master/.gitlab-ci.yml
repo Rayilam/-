@@ -1,0 +1,84 @@
+stages:
+  - rtl_chk
+  - bhv_sim
+  - run_syn
+  - bit_gen
+  - fpga_eval
+
+default:
+  image: gitlab.agileserve.org.cn:15050/zelin/vivado-ci-tools/vivado-vnc-ci-multistage:v2.5
+  tags:
+    - k8s
+
+rtl_chk:
+  stage: rtl_chk
+  script:
+    - make HW_ACT=rtl_chk CI_RUN=y vivado_prj
+  only:
+    variables:
+      - $CI_COMMIT_BRANCH == "dev"
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - hardware/vivado_out/run_log
+
+bhv_sim:
+  stage: bhv_sim
+  script:
+    - make HW_ACT=bhv_sim CI_RUN=y vivado_prj
+  only:
+    variables:
+      - $CI_COMMIT_BRANCH == "dev"
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - hardware/vivado_out/sim
+      - hardware/vivado_out/run_log
+
+run_syn:
+  stage: run_syn
+  script:
+    - make HW_ACT=run_syn CI_RUN=y vivado_prj
+  only:
+    variables:
+      - $CI_COMMIT_BRANCH == "dev"
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - hardware/vivado_out/synth_rpt
+      - hardware/vivado_out/run_log
+
+bit_gen:
+  stage: bit_gen
+  script:
+    - make HW_ACT=bit_gen CI_RUN=y vivado_prj
+  only:
+    variables:
+      - $CI_COMMIT_BRANCH == "run"
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - hardware/vivado_out/impl_rpt
+      - hardware/vivado_out/run_log
+      - hw_plat/
+
+fpga_eval:
+  stage: fpga_eval
+  tags:
+    - nf
+  script:
+    - mkdir -p ./run/log 
+    - cd run/
+    - bash ci_run.sh | tee ./log/cloud_run.log
+  only:
+    variables:
+      - $CI_COMMIT_BRANCH == "run"
+  artifacts:
+    name: "$CI_JOB_STAGE-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
+    when: always
+    paths:
+      - run/log/
